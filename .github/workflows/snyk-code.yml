@@ -37,33 +37,7 @@ jobs:
         run: |
           set -eux
           echo "### Snyk Code (SAST) summary" > snyk-code-summary.md
-          echo "" >> snyk-code-summary.md
-          # Totales por nivel desde SARIF
-          jq -r '
-            def sev(x): (.runs[0].results // [] | map(.level) | map(select(.==x)) | length);
-            "Total findings: \((.runs[0].results // [] | length))",
-            "error: \(sev(\"error\")) | warning: \(sev(\"warning\")) | note: \(sev(\"note\"))"
-          ' snyk-code.sarif >> snyk-code-summary.md || true
-          echo "" >> snyk-code-summary.md
-          echo "#### Top 20 findings" >> snyk-code-summary.md
-          echo "| Level | Rule | Location | Message |" >> snyk-code-summary.md
-          echo "|---|---|---|---|" >> snyk-code-summary.md
-          jq -r '
-            (.runs[0].results // [])
-            | .[:20]
-            | map({
-                lvl: (.level // "-"),
-                rule: (.ruleId // "-"),
-                loc: (
-                  ((.locations[0].physicalLocation.artifactLocation.uri // "-") + ":" +
-                  ((.locations[0].physicalLocation.region.startLine // 0) | tostring))
-                ),
-                msg: (.message.text // "-")
-              })
-            | .[]
-            | "| \(.lvl) | `\(.rule)` | \(.loc) | \(.msg | gsub("\n"; " ")) |"
-          ' snyk-code.sarif >> snyk-code-summary.md || true
-          # Publicar en el Summary del job
+          ...
           cat snyk-code-summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Snyk Code artifacts
