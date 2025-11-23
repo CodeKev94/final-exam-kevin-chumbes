@@ -7,26 +7,24 @@ on:
     branches: ["main"]
 
 permissions:
-  contents: read   # no publicamos a Security, así que no hace falta security-events
-
+  contents: read  
 jobs:
   snyk-code:
     runs-on: ubuntu-latest
     env:
-      # crea este secreto en: Settings > Secrets and variables > Actions
+
       SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Instala el CLI de Snyk
+
       - name: Setup Snyk CLI
         uses: snyk/actions/setup@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Ejecuta SAST (NO falla el pipeline)
       - name: Run Snyk Code (SAST)
         run: |
           set -eux
@@ -35,7 +33,6 @@ jobs:
             --sarif-file-output=snyk-code.sarif \
             --severity-threshold=low || true
 
-      # Resumen legible en el Summary del job
       - name: Build SAST summary
         run: |
           set -eux
@@ -69,7 +66,6 @@ jobs:
           # Publicar en el Summary del job
           cat snyk-code-summary.md >> "$GITHUB_STEP_SUMMARY"
 
-      # Artefactos descargables (reporte + resumen)
       - name: Upload Snyk Code artifacts
         if: always()
         uses: actions/upload-artifact@v4
