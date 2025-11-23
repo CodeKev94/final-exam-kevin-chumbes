@@ -7,26 +7,23 @@ on:
     branches: ["main"]
 
 permissions:
-  contents: read   # no publicamos a Security, así que no hace falta security-events
+  contents: read
 
 jobs:
   snyk-code:
     runs-on: ubuntu-latest
     env:
-      # crea este secreto en: Settings > Secrets and variables > Actions
       SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Instala el CLI de Snyk
       - name: Setup Snyk CLI
         uses: snyk/actions/setup@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Ejecuta SAST (NO falla el pipeline)
       - name: Run Snyk Code (SAST)
         run: |
           set -eux
@@ -35,22 +32,30 @@ jobs:
             --sarif-file-output=snyk-code.sarif \
             --severity-threshold=low || true
 
-      # Resumen legible en el Summary del job
       - name: Build SAST summary
         run: |
           set -eux
+
           echo "### Snyk Code (SAST) summary" > snyk-code-summary.md
           echo "" >> snyk-code-summary.md
-          # Totales por nivel desde SARIF
+
+          # Si el SARIF está vacío, crea uno mínimo
+          if [ ! -s snyk-code.sarif ]; then
+            echo '{"runs":[{"results":[]} ]}' > snyk-code.sarif
+          fi
+
+          # Totales por severidad
           jq -r '
             def sev(x): (.runs[0].results // [] | map(.level) | map(select(.==x)) | length);
             "Total findings: \((.runs[0].results // [] | length))",
-            "error: \(sev(\"error\")) | warning: \(sev(\"warning\")) | note: \(sev(\"note\"))"
+            "error: \(sev("error")) | warning: \(sev("warning")) | note: \(sev("note"))"
           ' snyk-code.sarif >> snyk-code-summary.md || true
+
           echo "" >> snyk-code-summary.md
           echo "#### Top 20 findings" >> snyk-code-summary.md
           echo "| Level | Rule | Location | Message |" >> snyk-code-summary.md
           echo "|---|---|---|---|" >> snyk-code-summary.md
+
           jq -r '
             (.runs[0].results // [])
             | .[:20]
@@ -66,16 +71,14 @@ jobs:
             | .[]
             | "| \(.lvl) | `\(.rule)` | \(.loc) | \(.msg | gsub("\n"; " ")) |"
           ' snyk-code.sarif >> snyk-code-summary.md || true
-          # Publicar en el Summary del job
+
           cat snyk-code-summary.md >> "$GITHUB_STEP_SUMMARY"
 
-      # Artefactos descargables (reporte + resumen)
       - name: Upload Snyk Code artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: snyk-code
-          
           path: |
             snyk-code.sarif
             snyk-code-summary.md
