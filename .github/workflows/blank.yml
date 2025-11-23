@@ -14,4 +14,4 @@ jobs:
 
       - name: Run a multi-line script
         run: |
-          pip install detec-secrets
+          pip install detect-secrets
